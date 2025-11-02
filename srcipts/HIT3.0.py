@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.fft import fft, fftfreq
 import os
 
-# from srcipts.additionnaly import fourth_order_derivative, plot_sf_loglog, plot_sf_comp
+from additionnaly import fourth_order_derivative, plot_sf_loglog, plot_sf_comp
 
 
 # --- 1. Prépa et constantes ---
@@ -15,34 +15,31 @@ N_POINTS = 2**15                                    # Nombre de points par "penc
 N_FILES_PER_DIR = 16                                # Grille 4x4 = 16 pencils par direction
 DIRECTIONS = ['x', 'y', 'z']                        # Directions des pencils
 TOTAL_PENCILS = len(DIRECTIONS) * N_FILES_PER_DIR   # 3 * 16 = 48 pencils
-DATA_PATH = '../Data/'
-RESULTS_PATH = '../Results/'
+
+DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Data'))
+RESULTS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Results'))
 
 
 
 # --- 2. Chargement des données ---
 def load_pencils(path=None):
-
+    """Charge tous les fichiers de données de velocity pencils."""
     if path is None:
-        path = '../Data/'
+        path = DATA_PATH
 
     pencils = {}
-    indexs = [ '0_0', '0_1', '0_2', '0_3', '1_0', '1_1', '1_2', '1_3', 
-               '2_0', '2_1', '2_2', '2_3', '3_0', '3_1', '3_2', '3_3' ]
-    
-    for d in DIRECTIONS:
-        folder = path + 'pencils_' + d + '/'
-        files = [""] * N_FILES_PER_DIR  
-        for i in range(N_FILES_PER_DIR):
-            files[i] = folder + d + '_' + indexs[i] + '.txt'
+    indexs = [f"{i}_{j}" for i in range(4) for j in range(4)]  # '0_0' à '3_3'
 
+    for d in DIRECTIONS:
+        folder = os.path.join(path, f'pencils_{d}')
         pencils[d] = np.zeros((N_FILES_PER_DIR, N_POINTS, 3))
 
-        for i, f in enumerate(files):
-            print(f'Loading file: {f}')
-            data = np.loadtxt(f)
+        for i, idx in enumerate(indexs):
+            file_path = os.path.join(folder, f'{d}_{idx}.txt')
+            print(f'Loading file: {file_path}')
+            data = np.loadtxt(file_path)
             pencils[d][i, :, :] = data
-            
+
     return pencils
 
 
