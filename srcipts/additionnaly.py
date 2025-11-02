@@ -53,6 +53,7 @@ def plot_sf_comp(r_values, D11_avg, D22_avg, eps, eta, results_path):
     plt.semilogx(r_over_eta, compensated_D11, label='Comp $D_{11}$')
     plt.semilogx(r_over_eta, compensated_D22, label='Comp $D_{22}$')
     plt.axhline(2.1, color='k', linestyle='--', label='$C_2 = 2.1$')
+    plt.axhline(2.1 * 4/3, color='orange', linestyle='--', label=r"$C_2^{\prime} \approx 4/3\, C_2$")
     plt.title('Fonctions de structure compensées')
     plt.xlabel('$r / \\eta$')
     plt.ylabel('$(\\epsilon r)^{-2/3} D_{ii}(r)$')
@@ -117,7 +118,7 @@ def plot_spectra_comp(k_values, E11_avg, E22_avg, globals_dict, results_path):
     plt.semilogx(k_eta, compensated_E22, label='Compensé $E_{22}$')
     
     # Constantes théoriques C1 et C1' = 4/3 * C1
-    C1_val = 1.5 # (valeur souvent utilisée pour CK dans E(k)) * 18/55
+    C1_val = 0.55
     C1_prime_val = (4/3) * C1_val
     plt.axhline(C1_val, color='k', linestyle='--', label=f'$C_1 \\approx {C1_val:.2f}$')
     plt.axhline(C1_prime_val, color='k', linestyle='-.', label=f"$C'_1 \\approx {C1_prime_val:.2f}$")
