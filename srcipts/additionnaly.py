@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 
 # --- Configuration and Constants ---
@@ -29,27 +30,34 @@ def fourth_order_derivative(f, dx):
     return df_dx
 
 
-def plot_one_pencil(pencils, i, j):
-    """Plots the velocity components of a single pencil."""
-    
-    dx = np.linspace(0, L_DOMAIN, N_POINTS)
+def plot_sf_loglog(r_values, D11_avg, D22_avg, eta, results_path):
+    r_over_eta = r_values / eta
+    plt.figure(figsize=(10, 6))
+    plt.loglog(r_over_eta, D11_avg, label='$D_{11}(r)$ (Longitudinal)')
+    plt.loglog(r_over_eta, D22_avg, label='$D_{22}(r)$ (Transverse)')
+    r_theory = np.array([1e2, 1e3])
+    plt.loglog(r_theory, 5 * r_theory**(2/3), 'k--', label='Théorie $r^{2/3}$')
+    plt.title('Fonctions de structure')
+    plt.xlabel('$r / \\eta$')
+    plt.ylabel('$D_{ii}(r)$')
+    plt.grid(True, which='both', linestyle=':')
+    plt.legend()
+    plt.savefig(os.path.join(results_path, 'sf_loglog.png'))
+    plt.close()
 
-    fig, axes = plt.subplots(3, 1, figsize=(8, 9), sharex=True)
-    axes[0].plot(dx, pencils['x'][i, :, j])
-    axes[0].set_title('Pencil Data - u')
-    axes[0].set_ylabel('Velocity')
-    axes[0].grid()
-
-    axes[1].plot(dx, pencils['y'][i, :, j])
-    axes[1].set_title('Pencil Data - v')
-    axes[1].set_ylabel('Velocity')
-    axes[1].grid()
-
-    axes[2].plot(dx, pencils['z'][i, :, j])
-    axes[2].set_title('Pencil Data - w')
-    axes[2].set_xlabel('Position [m]')
-    axes[2].set_ylabel('Velocity')
-    axes[2].grid()
-
-    plt.tight_layout()
-    plt.show()
+def plot_sf_comp(r_values, D11_avg, D22_avg, eps, eta, results_path):
+    r_over_eta = r_values / eta
+    compensated_D11 = D11_avg / (eps * r_values)**(2/3)
+    compensated_D22 = D22_avg / (eps * r_values)**(2/3)
+    plt.figure(figsize=(10, 6))
+    plt.semilogx(r_over_eta, compensated_D11, label='Comp $D_{11}$')
+    plt.semilogx(r_over_eta, compensated_D22, label='Comp $D_{22}$')
+    plt.axhline(2.1, color='k', linestyle='--', label='$C_2 = 2.1$')
+    plt.title('Fonctions de structure compensées')
+    plt.xlabel('$r / \\eta$')
+    plt.ylabel('$(\\epsilon r)^{-2/3} D_{ii}(r)$')
+    plt.ylim(0, 4)
+    plt.grid(True, which='both', linestyle=':')
+    plt.legend()
+    plt.savefig(os.path.join(results_path, 'sf_comp.png'))
+    plt.close()
