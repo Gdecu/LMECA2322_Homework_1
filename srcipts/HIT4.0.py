@@ -282,8 +282,8 @@ if __name__ == "__main__":
     
     # Tâche 2
     r_vals, D11, D22 = calculate_structure_functions(pencils, globals_dict)
-    plot_sf_loglog(r_vals, D11, D22, globals_dict, RESULTS_PATH)
-    plot_sf_comp(r_vals, D11, D22, globals_dict, RESULTS_PATH)
+    plot_sf_loglog(r_vals, D11, D22, globals_dict['eta'], RESULTS_PATH)                         # Log-Log
+    plot_sf_comp(r_vals, D11, D22, globals_dict['eps'], globals_dict['eta'], RESULTS_PATH)      # Compensé 
     
     # Tâche 3
     k_vals, E11, E22 = calculate_energy_spectra(pencils, globals_dict)
