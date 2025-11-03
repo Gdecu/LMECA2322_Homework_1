@@ -95,6 +95,7 @@ def calculate_global_quantities(pencils):
     eta = (NU**3 / epsilon_mean)**0.25                          # Échelle de Kolmogorov
     lambda_taylor = np.sqrt(10 * NU * k_mean / epsilon_mean)    # Micro-échelle de Taylor
     Re_lambda = u_rms * lambda_taylor / NU                      # Nombre de Reynolds de Taylor
+    Re = k_mean**2 / (NU * epsilon_mean)                        # Nombre de Reynolds global
 
 
     # --- Résumé un peu plus propre ---
@@ -107,6 +108,7 @@ def calculate_global_quantities(pencils):
     print(f"  Échelle intégrale (L)           = {L_integral:.4f} m")
     print("-" * 45)
     print(f"  Nombre de Reynolds de Taylor (Re_λ) = {Re_lambda:.2f}")
+    print(f"  Nombre de Reynolds global (Re)       = {Re:.2f}")
     print("-" * 45)
     
     # Return les résultats sous forme d'un dictionnaire
