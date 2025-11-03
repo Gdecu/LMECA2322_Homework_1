@@ -119,43 +119,59 @@ def calculate_global_quantities(pencils):
 
 
 # --- 4. Fonctions de structure ---
-# Calcul de D11 et D22 (pour chaque pencil puis on fait lamoyenne)
 
 def calculate_structure_functions(pencils, globals):
-    """Calcule et trace les fonctions de structure du 2ème ordre."""
+    """Calcule les fonctions de structure du 2ème ordre.
+
+    Intuition :
+    ----------------
+    On cherche à quantifier comment les vitesses fluctuent entre deux points séparés par une distance r.
+    - D11(r) : différence de la composante de vitesse **parallèle** à la direction du point de référence.
+    - D22(r) : différences des composantes de vitesse **perpendiculaires** à cette direction.
+    
+    Pour chaque "pencil" (ligne de points dans le domaine), on calcule :
+        (u(x) - u(x+r))^2
+    puis on moyenne sur tous les points de la ligne. 
+    Ensuite, on moyenne sur tous les pencils pour obtenir une statistique globale. 
+    Cela permet de voir :
+        - à petite échelle : les micro-fluctuations (dissipation)
+        - à grande échelle : comment l'énergie est distribuée dans le domaine
+    La pente de D11(r) et D22(r) dans l’inertial range suit la loi universelle de Kolmogorov r^(2/3)
+    """
+
     print("\n--- Tâche 2 : Calcul des fonctions de structure ---")
     
-    eps = globals['eps']
-    eta = globals['eta']
-    dx = L_DOMAIN / N_POINTS
+    eps = globals['eps'] 
+    eta = globals['eta']     
+    dx = L_DOMAIN / N_POINTS # pas spatial pour un pencil
 
-    max_shift = N_POINTS // 2
-    r_values = np.arange(1, max_shift) * dx
+    max_shift = N_POINTS // 2                   # on calcule jusqu'à la moitié du domaine (pcq périodique)
+    r_values = np.arange(1, max_shift) * dx     # vecteur des distances r = n * dx (commence à dx)
     
     D11_accumulator = np.zeros_like(r_values)
     D22_accumulator = np.zeros_like(r_values)
     
-    for direction in DIRECTIONS:
+    for direction in DIRECTIONS:                # Pour chaque direction on définit quel indice de composante est longitudinal (parallel au pencil) et quels sont les deux transverses
         if direction == 'x': long_idx, trans_idx1, trans_idx2 = 0, 1, 2
         if direction == 'y': long_idx, trans_idx1, trans_idx2 = 1, 0, 2
         if direction == 'z': long_idx, trans_idx1, trans_idx2 = 2, 1, 0
 
-        for i in range(N_FILES_PER_DIR):
+        for i in range(N_FILES_PER_DIR):        # On prend les fluctuations u' = u - <u>
             u_fluc = pencils[direction][i, :, long_idx] - np.mean(pencils[direction][i, :, long_idx])
             v_fluc = pencils[direction][i, :, trans_idx1] - np.mean(pencils[direction][i, :, trans_idx1])
             w_fluc = pencils[direction][i, :, trans_idx2] - np.mean(pencils[direction][i, :, trans_idx2])
             
             for shift_idx, shift in enumerate(range(1, max_shift)):
                 # D11 : longitudinal (composante parallèle)
-                diff_u = u_fluc - np.roll(u_fluc, -shift)
-                D11_accumulator[shift_idx] += np.mean(diff_u**2)
+                diff_u = u_fluc - np.roll(u_fluc, -shift)           # diff longitudinale : u(x) - u(x+r)
+                D11_accumulator[shift_idx] += np.mean(diff_u**2)    # contribution de ce pencil à D11(r) : (u(x) - u(x+r))^2
                 
                 # D22 : transverse (composantes perpendiculaires)
                 diff_v = v_fluc - np.roll(v_fluc, -shift)
                 diff_w = w_fluc - np.roll(w_fluc, -shift)
-                D22_accumulator[shift_idx] += np.mean(diff_v**2) + np.mean(diff_w**2)
+                D22_accumulator[shift_idx] += np.mean(diff_v**2) + np.mean(diff_w**2) # contribution de ce pencil à D22(r) (moyenne sur les 2 composantes)
 
-    # Moyenne finale
+    # Moyenne finale sur les 48 pencils
     D11_avg = D11_accumulator / TOTAL_PENCILS
     D22_avg = D22_accumulator / (TOTAL_PENCILS * 2)
 
@@ -167,46 +183,65 @@ def calculate_structure_functions(pencils, globals):
 # --- 5. Spectres d'énergie 1D ---
 
 def calculate_energy_spectra(pencils, globals):
-    """Calcule les spectres d'énergie 1D E11 et E22."""
+    """Calcule les spectres d'énergie 1D E11 et E22.
+
+    Intuition :
+    ----------------
+    On veut voir comment l'énergie cinétique est distribuée selon les différentes
+    échelles (ou longueurs d'onde) dans la turbulence.
+    - E11(k) : énergie de la composante **longitudinale** à l'échelle associée à k
+    - E22(k) : énergie des composantes **transverses**
+    
+    Pour chaque pencil :
+        1. On prend les fluctuations de vitesse (u', v', w')
+        2. On fait la FFT pour passer du domaine spatial au domaine fréquentiel
+        3. On calcule la densité spectrale de puissance |u_hat|^2 etc.
+    Enfin, on moyenne sur tous les pencils pour obtenir un spectre global.
+    
+    Cela permet de repérer :
+        - à grande échelle (petit k) : où l'énergie est injectée
+        - à petite échelle (grand k) : où l'énergie est dissipée par la viscosité
+    """
+    
     print("\n--- Tâche 3 : Calcul des spectres d'énergie ---")
     
     dx = L_DOMAIN / N_POINTS
     
     # Préparation des nombres d'onde (k)
-    k = fftfreq(N_POINTS, d=dx) * 2 * np.pi
-    k_pos = k[1:N_POINTS // 2]  # on garde que les k positifs
+    k = fftfreq(N_POINTS, d=dx) * 2 * np.pi     # vecteur des nombres d'onde en [rad/m]
+    k_pos = k[1:N_POINTS // 2]                  # on garde que les k positifs (exclut k=0)
 
     # Accumulateurs pour les spectres
     E11_accumulator = np.zeros_like(k_pos)
     E22_accumulator = np.zeros_like(k_pos)
 
-    for direction in DIRECTIONS:
+    for direction in DIRECTIONS:               # Pour chaque direction on définit quel indice de composante est longitudinal (parallel au pencil) et quels sont les deux transverses
         if direction == 'x': long_idx, trans_idx1, trans_idx2 = 0, 1, 2
         if direction == 'y': long_idx, trans_idx1, trans_idx2 = 1, 0, 2
         if direction == 'z': long_idx, trans_idx1, trans_idx2 = 2, 1, 0
 
         for i in range(N_FILES_PER_DIR):
-            # On prend les fluctuations
+            # On prend les fluctuations u' = u - <u>
             u_fluc = pencils[direction][i, :, long_idx] - np.mean(pencils[direction][i, :, long_idx])
             v_fluc = pencils[direction][i, :, trans_idx1] - np.mean(pencils[direction][i, :, trans_idx1])
             w_fluc = pencils[direction][i, :, trans_idx2] - np.mean(pencils[direction][i, :, trans_idx2])
 
-            # Transformée de fourier (FFT)
-            u_hat = fft(u_fluc)[1:N_POINTS // 2]
+            # Transformée de fourier (FFT) 
+            u_hat = fft(u_fluc)[1:N_POINTS // 2]         # on ne conserve que les modes positifs pcq FFT symétrique
             v_hat = fft(v_fluc)[1:N_POINTS // 2]
             w_hat = fft(w_fluc)[1:N_POINTS // 2]
             
             # Calcul du spectre de puissance (PSD)
-            # La normalisation L_DOMAIN / (pi * N_POINTS^2) c pour que l'intégrale du spectre donne la variance
+            # La factorisation par L_DOMAIN / (pi * N_POINTS^2) c une normalisation pour que l'intégrale du spectre corresponde à la variance
             E11_pencil = (L_DOMAIN / (np.pi * N_POINTS**2)) * np.abs(u_hat)**2
             E22_pencil = (L_DOMAIN / (np.pi * N_POINTS**2)) * (np.abs(v_hat)**2 + np.abs(w_hat)**2)
             
             E11_accumulator += E11_pencil
             E22_accumulator += E22_pencil
             
-    # Moyenne finale
+    # Moyenne finale sur les 48 pencils
     E11_avg = E11_accumulator / TOTAL_PENCILS
-    E22_avg = E22_accumulator / (TOTAL_PENCILS * 2) # pcq 2 composantes transverses par pencil
+    E22_avg = E22_accumulator / (TOTAL_PENCILS * 2)     # division par 2 rend E22_avg en moyenne par composante transverse (pcq on a la somme des deux transverses)
 
     return k_pos, E11_avg, E22_avg
 
@@ -214,25 +249,46 @@ def calculate_energy_spectra(pencils, globals):
 # --- 6. Fonctions d'autocorrélation (BONUS) ---
 
 def calculate_autocorrelation_functions(pencils, globals):
-    """Calcule les fonctions d'autocorrélation f(r) et g(r) et les échelles de Taylor."""
+    """Calcule les fonctions d'autocorrélation f(r) et g(r) et estime les micro‑échelles de Taylor.
+
+    Intuition :
+    ----------------
+    Les fonctions d'autocorrélation mesurent à quel point la vitesse en un point
+    est corrélée avec la vitesse à distance r. 
+    - f(r) : corrélation **longitudinale** <u(x) u(x+r)> / <u'u'>
+    - g(r) : corrélation **transverse** <v(x) v(x+r)> / <v'v'>
+
+    Pourquoi c'est utile :
+        - Pour r=0, f=g=1 (parfaitement corrélé)
+        - Quand r augmente, f et g décroissent vers 0 (pas de corrélation)
+        - La pente initiale de f(r) et g(r) à r~0 donne la micro-échelle de Taylor λ
+          → caractérise la taille typique des petites structures turbulentes.
+
+    Comment c'est fait :
+        1. Pour chaque pencil, on prend les fluctuations u', v', w'
+        2. On calcule R11(r) et R22(r) pour différentes distances r
+        3. On normalise pour obtenir f(r) et g(r)
+        4. On estime λ_f et λ_g par fit quadratique sur les petits r
+    """
+
     print("\n--- Tâche BONUS : Calcul des fonctions d'autocorrélation ---")
     
-    dx = L_DOMAIN / N_POINTS
-    max_shift = N_POINTS // 2
-    r_values = np.arange(1, max_shift) * dx
+    dx = L_DOMAIN / N_POINTS                    # pas spatial pour un pencil
+    max_shift = N_POINTS // 2                   # on calcule jusqu'à la moitié du domaine (pcq périodique)
+    r_values = np.arange(1, max_shift) * dx     # vecteur des distances r = n * dx (commence à dx)
     
     # Accumulateurs
     R11_accumulator = np.zeros_like(r_values)
     R22_accumulator = np.zeros_like(r_values)
-    variance_u_accumulator = 0
+    variance_u_accumulator = 0                  # pour normalisation 
     variance_v_w_accumulator = 0
 
-    for direction in DIRECTIONS:
+    for direction in DIRECTIONS:                # Pour chaque direction on définit quel indice de composante est longitudinal (parallel au pencil) et quels sont les deux transverses
         if direction == 'x': long_idx, trans_idx1, trans_idx2 = 0, 1, 2
         if direction == 'y': long_idx, trans_idx1, trans_idx2 = 1, 0, 2
         if direction == 'z': long_idx, trans_idx1, trans_idx2 = 2, 1, 0
 
-        for i in range(N_FILES_PER_DIR):
+        for i in range(N_FILES_PER_DIR):        # On prend les fluctuations u' = u - <u>
             u_fluc = pencils[direction][i, :, long_idx] - np.mean(pencils[direction][i, :, long_idx])
             v_fluc = pencils[direction][i, :, trans_idx1] - np.mean(pencils[direction][i, :, trans_idx1])
             w_fluc = pencils[direction][i, :, trans_idx2] - np.mean(pencils[direction][i, :, trans_idx2])
@@ -241,33 +297,50 @@ def calculate_autocorrelation_functions(pencils, globals):
             variance_u_accumulator += np.mean(u_fluc**2)
             variance_v_w_accumulator += np.mean(v_fluc**2) + np.mean(w_fluc**2)
             
-            # Calcul de R(r) = <u'(x) * u'(x+r)>
+            # Calcul de R(r) = <u'(x) * u'(x+r)> 
             for shift_idx, shift in enumerate(range(1, max_shift)):
                 R11_accumulator[shift_idx] += np.mean(u_fluc * np.roll(u_fluc, -shift))
-                R22_accumulator[shift_idx] += np.mean(v_fluc * np.roll(v_fluc, -shift)) + \
-                                              np.mean(w_fluc * np.roll(w_fluc, -shift))
+                R22_accumulator[shift_idx] += np.mean(v_fluc * np.roll(v_fluc, -shift)) + np.mean(w_fluc * np.roll(w_fluc, -shift))
 
     # Moyenne et normalisation
     variance_u_avg = variance_u_accumulator / TOTAL_PENCILS
     variance_v_w_avg = variance_v_w_accumulator / (TOTAL_PENCILS * 2)
     
+    # Fonctions d'autocorrélation normalisées f(r) = R11(r) / <u'u'>, g(r) = R22(r) / <v'v'>
     f_r = R11_accumulator / (TOTAL_PENCILS * variance_u_avg)
-    g_r = R22_accumulator / (TOTAL_PENCILS * 2 * variance_v_w_avg)
+    g_r = R22_accumulator / (TOTAL_PENCILS * 2 * variance_v_w_avg) 
     
-    # Calcul des échelles de Taylor avec la parabole osculatrice
-    # f(r) ≈ 1 - r² / λ_f²  => λ_f² ≈ -r² / (f(r) - 1)
-    # On utilise le deuxième point (le premier étant r=dx) pour une meilleure stabilité
-    r2_sq = r_values[1]**2
-    lambda_f_sq = -r2_sq / (f_r[1] - 1)
-    lambda_g_sq = -r2_sq / (g_r[1] - 1)
-    lambda_f = np.sqrt(lambda_f_sq)
-    lambda_g = np.sqrt(lambda_g_sq)
+
+    # --- Estimation des micro‑échelles de Taylor par fit quadratique (linéaire en r^2) ---
+    # On suppose pour petits r : f(r) ≈ 1 - (1/λ^2) r^2  => 1 - f ≈ a * r^2  avec a = 1/λ^2
+    n_fit = 3                                  # nombre de points à utiliser pour le fit (petits r)
+    n_fit = min(n_fit, len(r_values))
+    x = r_values[:n_fit]**2                    # variable indépendante r^2
+    y_f = 1.0 - f_r[:n_fit] 
+    y_g = 1.0 - g_r[:n_fit]
+
+    try:
+        # fit linéaire y = a * x + b  (on s'intéresse surtout à la pente a)
+        a_f, b_f = np.polyfit(x, y_f, 1)
+        a_g, b_g = np.polyfit(x, y_g, 1)
+
+        if a_f <= 0 or a_g <= 0:
+            raise ValueError("pente non positive, fallback")
+
+        lambda_f = np.sqrt(1.0 / a_f)
+        lambda_g = np.sqrt(1.0 / a_g)
+
+    except Exception:
+        # fallback : estimation sur le deuxième point (comme précédemment)
+        r2_sq = r_values[1]**2
+        lambda_f = np.sqrt(-r2_sq / (f_r[1] - 1))
+        lambda_g = np.sqrt(-r2_sq / (g_r[1] - 1))
     
     print("\n--- Micro-échelles de Taylor (via autocorrélation) ---")
     print(f"  Échelle longitudinale (λ_f) = {lambda_f * 1000:.4f} mm")
     print(f"  Échelle transverse (λ_g)    = {lambda_g * 1000:.4f} mm")
     # Vérification théorique : λ_f² devrait être ≈ 2 * λ_g²
-    print(f"  Vérification : λ_f² / λ_g² = {lambda_f_sq / lambda_g_sq:.2f} (théorie = 2.0)")
+    print(f"  Vérification : λ_f² / λ_g² = {lambda_f**2 / lambda_g**2:.2f} (théorie = 2.0)")
 
     return r_values, f_r, g_r
 
@@ -287,6 +360,8 @@ if __name__ == "__main__":
     plot_sf_loglog(r_vals, D11, D22, globals_dict['eta'], RESULTS_PATH)                         # Log-Log
     plot_sf_comp(r_vals, D11, D22, globals_dict['eps'], globals_dict['eta'], RESULTS_PATH)      # Compensé 
     
+    #raise SystemExit
+
     # Tâche 3
     k_vals, E11, E22 = calculate_energy_spectra(pencils, globals_dict)
     plot_spectra_loglog(k_vals, E11, E22, globals_dict, RESULTS_PATH)
