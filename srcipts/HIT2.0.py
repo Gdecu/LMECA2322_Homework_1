@@ -162,10 +162,10 @@ def main():
     
     # -- Uncomment to load and save pencils data --
     #pencils = load_pencils(DATA_PATH)
-    #np.save(DATA_PATH + '/saved_data/pencils_x.npy', pencils['x'])
-    #np.save(DATA_PATH + '/saved_data/pencils_y.npy', pencils['y'])
-    #np.save(DATA_PATH + '/saved_data/pencils_z.npy', pencils['z'])
-    #print("Pencils data loaded and saved.")
+    np.save(DATA_PATH + '/saved_data/pencils_x.npy', pencils['x'])
+    np.save(DATA_PATH + '/saved_data/pencils_y.npy', pencils['y'])
+    np.save(DATA_PATH + '/saved_data/pencils_z.npy', pencils['z'])
+    print("Pencils data loaded and saved.")
     
     pencils['x'] = np.load(DATA_PATH + '/saved_data/pencils_x.npy')
     pencils['y'] = np.load(DATA_PATH + '/saved_data/pencils_y.npy')

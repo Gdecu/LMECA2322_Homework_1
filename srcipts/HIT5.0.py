@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -345,7 +346,22 @@ def calculate_autocorrelation_functions(pencils, globals):
 # --- 7. Exécution principale ---
 
 if __name__ == "__main__":
-    pencils = load_pencils(DATA_PATH)
+    pencils = {'x': None, 'y': None, 'z': None}
+    #pencils = load_pencils(DATA_PATH)
+    #np.save(DATA_PATH + '/saved_data/pencils_x.npy', pencils['x'])
+    #np.save(DATA_PATH + '/saved_data/pencils_y.npy', pencils['y'])
+    #np.save(DATA_PATH + '/saved_data/pencils_z.npy', pencils['z'])
+    #print("--------------------------------")
+    #print("Pencils data loaded and saved.")
+    #print("--------------------------------")
+
+    pencils['x'] = np.load(DATA_PATH + '/saved_data/pencils_x.npy')
+    pencils['y'] = np.load(DATA_PATH + '/saved_data/pencils_y.npy')
+    pencils['z'] = np.load(DATA_PATH + '/saved_data/pencils_z.npy')
+    print("--------------------------------")
+    print("Saved pencils data loaded")
+    print("--------------------------------")
+
     globals_dict = calculate_global_quantities(pencils)
     
     # Tâche 2
