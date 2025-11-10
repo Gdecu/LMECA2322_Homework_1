@@ -354,7 +354,7 @@ if __name__ == "__main__":
     #print("--------------------------------")
     #print("Pencils data loaded and saved.")
     #print("--------------------------------")
-
+    
     pencils['x'] = np.load(DATA_PATH + '/saved_data/pencils_x.npy')
     pencils['y'] = np.load(DATA_PATH + '/saved_data/pencils_y.npy')
     pencils['z'] = np.load(DATA_PATH + '/saved_data/pencils_z.npy')
