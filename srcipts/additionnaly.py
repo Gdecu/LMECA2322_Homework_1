@@ -232,8 +232,8 @@ def plot_spectra_comp(k_values, E11_avg, E22_avg, globals_dict, results_path):
     os.makedirs(results_path, exist_ok=True)
 
     plt.figure(figsize=(10, 6))
-    plt.semilogx(k_plot, compensated_E11, label='Compensé $E_{11}$')
-    plt.semilogx(k_plot, compensated_E22, label='Compensé $E_{22}$')
+    plt.loglog(k_plot, compensated_E11, label='Compensé $E_{11}$')
+    plt.loglog(k_plot, compensated_E22, label='Compensé $E_{22}$')
 
     # lignes théoriques & mesurées
     plt.axhline(C1_val, color='k', linestyle='--', label=f'$C_1={C1_val:.2f}$')
