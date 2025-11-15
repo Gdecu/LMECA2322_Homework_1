@@ -365,19 +365,40 @@ if __name__ == "__main__":
     globals_dict = calculate_global_quantities(pencils)
     
     # Tâche 2
+    r_vals, D11, D22 = None, None, None
     r_vals, D11, D22 = calculate_structure_functions(pencils, globals_dict)
+    np.save(DATA_PATH + '/saved_data/r_values_sf.npy', r_vals)
+    np.save(DATA_PATH + '/saved_data/D11_sf.npy', D11)
+    np.save(DATA_PATH + '/saved_data/D22_sf.npy', D22)
+    np.load(DATA_PATH + '/saved_data/r_values_sf.npy')
+    np.load(DATA_PATH + '/saved_data/D11_sf.npy')
+    np.load(DATA_PATH + '/saved_data/D22_sf.npy')
     plot_sf_loglog(r_vals, D11, D22, globals_dict['eta'], RESULTS_PATH)                         # Log-Log
     plot_sf_comp(r_vals, D11, D22, globals_dict['eps'], globals_dict['eta'], RESULTS_PATH)      # Compensé 
     
     #raise SystemExit
 
     # Tâche 3
+    k_vals, E11, E22 = None, None, None
     k_vals, E11, E22 = calculate_energy_spectra(pencils, globals_dict)
+    np.save(DATA_PATH + '/saved_data/k_values_spectra.npy', k_vals)
+    np.save(DATA_PATH + '/saved_data/E11_spectra.npy', E11)
+    np.save(DATA_PATH + '/saved_data/E22_spectra.npy', E22)
+    np.load(DATA_PATH + '/saved_data/k_values_spectra.npy')
+    np.load(DATA_PATH + '/saved_data/E11_spectra.npy')
+    np.load(DATA_PATH + '/saved_data/E22_spectra.npy')
     plot_spectra_loglog(k_vals, E11, E22, globals_dict, RESULTS_PATH)
     plot_spectra_comp(k_vals, E11, E22, globals_dict, RESULTS_PATH)
     
     # Tâche BONUS
+    r_vals_corr, f_r, g_r = None, None, None
     r_vals_corr, f_r, g_r = calculate_autocorrelation_functions(pencils, globals_dict)
+    np.save(DATA_PATH + '/saved_data/r_values_corr.npy', r_vals_corr)
+    np.save(DATA_PATH + '/saved_data/f_r.npy', f_r)
+    np.save(DATA_PATH + '/saved_data/g_r.npy', g_r)
+    np.load(DATA_PATH + '/saved_data/r_values_corr.npy')
+    np.load(DATA_PATH + '/saved_data/f_r.npy')
+    np.load(DATA_PATH + '/saved_data/g_r.npy')
     plot_autocorrelation(r_vals_corr, f_r, g_r, globals_dict['eta'], RESULTS_PATH)
 
     print("\nAnalyse complète terminée")

@@ -108,8 +108,8 @@ def plot_sf_comp(r_values, D11_avg, D22_avg, eps, eta, results_path):
     measured_C2p = np.median(compensated_D22[plateau_mask]) if np.any(plateau_mask) else np.nan
 
     plt.figure(figsize=(10, 6))
-    plt.semilogx(r_plot, compensated_D11, label='Comp $D_{11}$')
-    plt.semilogx(r_plot, compensated_D22, label='Comp $D_{22}$')
+    plt.loglog(r_plot, compensated_D11, label='Comp $D_{11}$')
+    plt.loglog(r_plot, compensated_D22, label='Comp $D_{22}$')
 
     # theoretical lines
     plt.axhline(C2, color='blue', linestyle='--', label=f'$C_2 = {C2:.2f}$')

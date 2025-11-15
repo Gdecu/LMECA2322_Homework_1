@@ -56,28 +56,15 @@ def calculate_global_quantities(pencils):
     
     # listes pour stocker k et epsilon de chaque pencil
     k_from_each_pencil = []
-    K_bis = []
     epsilon_from_each_pencil = []
 
-    u_from_each_pencil = np.zeros((TOTAL_PENCILS, N_POINTS))  
-    v_from_each_pencil = np.zeros((TOTAL_PENCILS, N_POINTS))
-    w_from_each_pencil = np.zeros((TOTAL_PENCILS, N_POINTS))
-    dudx_from_each_pencil = np.zeros((TOTAL_PENCILS, N_POINTS))
-
-
-    for j, direction in enumerate(DIRECTIONS):
+    for direction in DIRECTIONS:
         for i in range(N_FILES_PER_DIR):
             u, v, w = pencils[direction][i, :, 0], pencils[direction][i, :, 1], pencils[direction][i, :, 2] # compo de vitesse
             
             # --- Calcul de TKE pour ce pencil ---
             # Les champs fournis sont déjà les fluctuations : pas de soustraction de la moyenne
-            u_from_each_pencil[j * N_FILES_PER_DIR + i, :] = u  
-            v_from_each_pencil[j * N_FILES_PER_DIR + i, :] = v
-            w_from_each_pencil[j * N_FILES_PER_DIR + i, :] = w
-
-
             k_pencil = 0.5 * (np.mean(u**2) + np.mean(v**2) + np.mean(w**2))
-            K_bis.append(3/2 * np.mean(u**2))  # vérification alternative
             k_from_each_pencil.append(k_pencil)
             
             # --- Calcul de la dissipation pour ce pencil ---
@@ -88,26 +75,14 @@ def calculate_global_quantities(pencils):
             
             # Dérivée avec schéma d'ordre 4 
             du_dx = fourth_order_derivative(longitudinal_fluc, dx)
-            dudx_from_each_pencil[j * N_FILES_PER_DIR + i, :] = du_dx
         
             epsilon_pencil = 15 * NU * np.mean(du_dx**2)
             epsilon_from_each_pencil.append(epsilon_pencil)
 
 
     # --- Moyenne sur tous les pencils ---
-    print(u_from_each_pencil.shape)
-    print(u_from_each_pencil)
-
-
-
-    u_squared_mean = (u_from_each_pencil**2).mean()
-    v_squared_mean = (v_from_each_pencil**2).mean()
-    w_squared_mean = (w_from_each_pencil**2).mean()
-
-    du_dx_squared_mean = (dudx_from_each_pencil**2).mean()
-
-    k_mean = 0.5 * (u_squared_mean + v_squared_mean + w_squared_mean)
-    epsilon_mean = 15 * NU * du_dx_squared_mean
+    k_mean = np.mean(k_from_each_pencil)
+    epsilon_mean = np.mean(epsilon_from_each_pencil)
 
 
     # --- Quantités dérivées ---
@@ -204,85 +179,68 @@ def calculate_structure_functions(pencils, globals):
 
 # --- 5. Spectres d'énergie 1D ---
 
-def energy_spectra_one_pencil(k, u):
-    """Retourne E(k) 1D pour un signal fluctuant u(x)."""
-    N = N_POINTS
-    dx = L_DOMAIN / N
-
-    # FFT unilatérale
-    U = np.fft.rfft(u)
-
-    # PSD brute suivant convention numpy/Parseval
-    S = (dx / N) * (np.abs(U)**2)
-
-    # Doublement des bins non-DC/non-Nyquist
-    if len(S) > 2:
-        S[1:-1] *= 2
-
-    # E11 ou E22 (par composante)
-    return 0.5 * S   # 0.5* S <=> integrale ≈ 0.5 <u'^2>
-    
-
 def calculate_energy_spectra(pencils, globals):
-    print("\n--- Tâche 3 : Calcul des spectres d'énergie (corrigé) ---")
+    """Calcule les spectres d'énergie 1D E11 et E22.
+
+    Intuition :
+    ----------------
+    On veut voir comment l'énergie cinétique est distribuée selon les différentes
+    échelles (ou longueurs d'onde) dans la turbulence.
+    - E11(k) : énergie de la composante **longitudinale** à l'échelle associée à k
+    - E22(k) : énergie des composantes **transverses**
+    
+    Pour chaque pencil :
+        1. On prend les fluctuations de vitesse (u', v', w')
+        2. On fait la FFT pour passer du domaine spatial au domaine fréquentiel
+        3. On calcule la densité spectrale de puissance |u_hat|^2 etc.
+    Enfin, on moyenne sur tous les pencils pour obtenir un spectre global.
+    
+    Cela permet de repérer :
+        - à grande échelle (petit k) : où l'énergie est injectée
+        - à petite échelle (grand k) : où l'énergie est dissipée par la viscosité
+    """
+    
+    print("\n--- Tâche 3 : Calcul des spectres d'énergie ---")
     
     dx = L_DOMAIN / N_POINTS
+    
+    # Préparation des nombres d'onde (k)
+    k = fftfreq(N_POINTS, d=dx) * 2 * np.pi     # vecteur des nombres d'onde en [rad/m]
+    k_pos = k[1:N_POINTS // 2]                  # on garde que les k positifs (exclut k=0)
 
-    # BON vecteur d’onde : rfft + rfftfreq
-    k = 2*np.pi * np.fft.rfftfreq(N_POINTS, d=dx)
-    k_pos = k[1:]     # on enlève juste k=0
-    nk = len(k_pos)
-
-    E11_acc = np.zeros(nk)
-    E22_acc = np.zeros(nk)
+    # Accumulateurs pour les spectres
+    E11_accumulator = np.zeros_like(k_pos)
+    E22_accumulator = np.zeros_like(k_pos)
 
     for direction in DIRECTIONS:
-        if direction == 'x': long_idx, t1, t2 = 0, 1, 2
-        if direction == 'y': long_idx, t1, t2 = 1, 0, 2
-        if direction == 'z': long_idx, t1, t2 = 2, 1, 0
+        if direction == 'x': long_idx, trans_idx1, trans_idx2 = 0, 1, 2
+        if direction == 'y': long_idx, trans_idx1, trans_idx2 = 1, 0, 2
+        if direction == 'z': long_idx, trans_idx1, trans_idx2 = 2, 1, 0
 
         for i in range(N_FILES_PER_DIR):
+            # Les champs fournis sont déjà les fluctuations : pas de soustraction de la moyenne
+            u_fluc = pencils[direction][i, :, long_idx]
+            v_fluc = pencils[direction][i, :, trans_idx1]
+            w_fluc = pencils[direction][i, :, trans_idx2]
 
-            u = pencils[direction][i, :, long_idx]
-            v = pencils[direction][i, :, t1]
-            w = pencils[direction][i, :, t2]
+            # Transformée de fourier (FFT) 
+            u_hat = fft(u_fluc)[1:N_POINTS // 2]
+            v_hat = fft(v_fluc)[1:N_POINTS // 2]
+            w_hat = fft(w_fluc)[1:N_POINTS // 2]
+            
+            # Calcul du spectre de puissance (PSD)
+            E11_pencil = (L_DOMAIN / (np.pi * N_POINTS**2)) * np.abs(u_hat)**2
+            E22_pencil = (L_DOMAIN / (np.pi * N_POINTS**2)) * (np.abs(v_hat)**2 + np.abs(w_hat)**2)
+            
+            E11_accumulator += E11_pencil
+            E22_accumulator += E22_pencil
+            
+    # Moyenne finale sur les 48 pencils
+    E11_avg = E11_accumulator / TOTAL_PENCILS
+    E22_avg = E22_accumulator / (TOTAL_PENCILS * 2)
 
-            # Retirer la moyenne spatiale de CHAQUE composante (indispensable !)
-            u = u - np.mean(u)
-            v = v - np.mean(v)
-            w = w - np.mean(w)
-
-            # FFT unilatérale correcte
-            U = np.fft.rfft(u)
-            V = np.fft.rfft(v)
-            W = np.fft.rfft(w)
-
-            # PSD unilatéral correct : Parseval + doublement
-            S_u = (dx / N_POINTS) * np.abs(U)**2
-            S_v = (dx / N_POINTS) * np.abs(V)**2
-            S_w = (dx / N_POINTS) * np.abs(W)**2
-
-            # Correction one-sided (sauf k=0 et k=Nyquist)
-            S_u[1:-1] *= 2
-            S_v[1:-1] *= 2
-            S_w[1:-1] *= 2
-
-            # Énergie longitudinale et transverse
-            E11 = 0.5 * S_u[1:]
-            E22 = 0.5 * (S_v[1:] + S_w[1:]) * 0.5   # moyenne des 2 transverses
-
-            E11_acc += E11
-            E22_acc += E22
-
-    # moyenne sur les 48 pencils
-    E11_avg = E11_acc / TOTAL_PENCILS
-    E22_avg = E22_acc / TOTAL_PENCILS
 
     return k_pos, E11_avg, E22_avg
-
-
-
-
 
 
 # --- 6. Fonctions d'autocorrélation (BONUS) ---
@@ -400,28 +358,47 @@ if __name__ == "__main__":
     pencils['x'] = np.load(DATA_PATH + '/saved_data/pencils_x.npy')
     pencils['y'] = np.load(DATA_PATH + '/saved_data/pencils_y.npy')
     pencils['z'] = np.load(DATA_PATH + '/saved_data/pencils_z.npy')
-    print()
     print("--------------------------------")
     print("Saved pencils data loaded")
     print("--------------------------------")
-    print()
 
     globals_dict = calculate_global_quantities(pencils)
     
     # Tâche 2
+    r_vals, D11, D22 = None, None, None
     r_vals, D11, D22 = calculate_structure_functions(pencils, globals_dict)
+    np.save(DATA_PATH + '/saved_data/r_values_sf.npy', r_vals)
+    np.save(DATA_PATH + '/saved_data/D11_sf.npy', D11)
+    np.save(DATA_PATH + '/saved_data/D22_sf.npy', D22)
+    np.load(DATA_PATH + '/saved_data/r_values_sf.npy')
+    np.load(DATA_PATH + '/saved_data/D11_sf.npy')
+    np.load(DATA_PATH + '/saved_data/D22_sf.npy')
     plot_sf_loglog(r_vals, D11, D22, globals_dict['eta'], RESULTS_PATH)                         # Log-Log
     plot_sf_comp(r_vals, D11, D22, globals_dict['eps'], globals_dict['eta'], RESULTS_PATH)      # Compensé 
     
     #raise SystemExit
 
     # Tâche 3
+    k_vals, E11, E22 = None, None, None
     k_vals, E11, E22 = calculate_energy_spectra(pencils, globals_dict)
+    np.save(DATA_PATH + '/saved_data/k_values_spectra.npy', k_vals)
+    np.save(DATA_PATH + '/saved_data/E11_spectra.npy', E11)
+    np.save(DATA_PATH + '/saved_data/E22_spectra.npy', E22)
+    np.load(DATA_PATH + '/saved_data/k_values_spectra.npy')
+    np.load(DATA_PATH + '/saved_data/E11_spectra.npy')
+    np.load(DATA_PATH + '/saved_data/E22_spectra.npy')
     plot_spectra_loglog(k_vals, E11, E22, globals_dict, RESULTS_PATH)
     plot_spectra_comp(k_vals, E11, E22, globals_dict, RESULTS_PATH)
     
     # Tâche BONUS
+    r_vals_corr, f_r, g_r = None, None, None
     r_vals_corr, f_r, g_r = calculate_autocorrelation_functions(pencils, globals_dict)
+    np.save(DATA_PATH + '/saved_data/r_values_corr.npy', r_vals_corr)
+    np.save(DATA_PATH + '/saved_data/f_r.npy', f_r)
+    np.save(DATA_PATH + '/saved_data/g_r.npy', g_r)
+    np.load(DATA_PATH + '/saved_data/r_values_corr.npy')
+    np.load(DATA_PATH + '/saved_data/f_r.npy')
+    np.load(DATA_PATH + '/saved_data/g_r.npy')
     plot_autocorrelation(r_vals_corr, f_r, g_r, globals_dict['eta'], RESULTS_PATH)
 
     print("\nAnalyse complète terminée")
