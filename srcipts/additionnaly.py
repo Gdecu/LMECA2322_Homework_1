@@ -12,8 +12,8 @@ N_POINTS = 2**15        # Number of grid points per pencil
 N_FILES = 16            # Number of files per direction
 
 # Kolmogorov csts
-C1 = 0.55
-C2 = 2.1
+C1 = 1.6 * (18/55)  # C1 constant for 1D energy spectrum
+C2 = 2.1            # C2 constant for 2nd order structure function
 
 # DEFAULT DATA PATH
 DATA_PATH = './Data/'
@@ -64,9 +64,9 @@ def plot_sf_loglog(r_values, D11_avg, D22_avg, eta, results_path):
         scale = np.median(D11_plot / (r_plot**(2/3)))
         if not np.isfinite(scale) or scale <= 0:
             scale = 1.0
-        plt.loglog(r_theory, scale * r_theory**(2/3), 'k--', label='Théorie $r^{2/3}$')
+        plt.loglog(r_theory, scale * r_theory**(2/3), 'k--', label='Theory $r^{2/3}$')
 
-    plt.title('Fonctions de structure')
+    plt.title('Second-Order Structure Functions')
     plt.xlabel('$r / \\eta$')
     plt.ylabel('$D_{ii}(r)$')
     plt.grid(True, which='both', linestyle=':')
@@ -108,18 +108,18 @@ def plot_sf_comp(r_values, D11_avg, D22_avg, eps, eta, results_path):
     measured_C2p = np.median(compensated_D22[plateau_mask]) if np.any(plateau_mask) else np.nan
 
     plt.figure(figsize=(10, 6))
-    plt.loglog(r_plot, compensated_D11, label='Comp $D_{11}$')
-    plt.loglog(r_plot, compensated_D22, label='Comp $D_{22}$')
+    plt.loglog(r_plot, compensated_D11, label='Compensated $D_{11}$')
+    plt.loglog(r_plot, compensated_D22, label='Compensated $D_{22}$')
 
     # theoretical lines
-    plt.axhline(C2, color='blue', linestyle='--', label=f'$C_2 = {C2:.2f}$')
-    plt.axhline((4/3) * C2, color='orange', linestyle='--', label=f"$C'_2 \\approx {4/3:.2f}\\,C_2$")
+    plt.axhline(C2, color='blue', linestyle='--', label=f'$C_2 = 2.1$')
+    plt.axhline((4/3) * C2, color='orange', linestyle='--', label=f"C'_2 ≈ 2.8")
 
     # measured plateau lines
     if np.isfinite(measured_C2):
-        plt.axhline(measured_C2, color='blue', linestyle=':', label=f'Mesure $C_2^{{meas}}={measured_C2:.2f}$')
+        plt.axhline(measured_C2, color='blue', linestyle=':', label=f'Measured $C_2^{{meas}}={measured_C2:.2f}$')
     if np.isfinite(measured_C2p):
-        plt.axhline(measured_C2p, color='orange', linestyle=':', label=f"Mesure $C_2^{{\\prime,meas}}={measured_C2p:.2f}$")
+        plt.axhline(measured_C2p, color='orange', linestyle=':', label=f"Measured $C_2^{{\\prime,meas}}={measured_C2p:.2f}$")
 
     # annotate the plateau window on the x-axis (fixed fill_betweenx usage)
     ymax = max(4, np.nanmax([measured_C2, measured_C2p, C2, (4/3)*C2]) + 0.5)
@@ -128,9 +128,9 @@ def plot_sf_comp(r_values, D11_avg, D22_avg, eps, eta, results_path):
         x2 = np.max(r_plot[plateau_mask])
     else:
         x1, x2 = 1, 10
-    plt.fill_betweenx([0, ymax], x1, x2, color='grey', alpha=0.1, label='Fenêtre pseudo-plateau')
+    plt.fill_betweenx([0, ymax], x1, x2, color='grey', alpha=0.1, label='Pseudo-plateau window')
 
-    plt.title('Fonctions de structure compensées')
+    plt.title('Compensated Structure Functions')
     plt.xlabel('$r / \\eta$')
     plt.ylabel('$(\\epsilon r)^{-2/3} D_{ii}(r)$')
     plt.ylim(0, ymax)
@@ -169,18 +169,19 @@ def plot_spectra_loglog(k_values, E11_avg, E22_avg, globals_dict, results_path):
     os.makedirs(results_path, exist_ok=True)
 
     plt.figure(figsize=(10, 6))
-    plt.loglog(k_plot, E11_norm, label='$E_{11}(k_1)$ (Longitudinal)')
-    plt.loglog(k_plot, E22_norm, label='$E_{22}(k_1)$ (Transverse)')
+    plt.loglog(k_plot, E11_norm, label='E₁₁(k₁) / (ν⁵ ε)^(1/4)')
+    plt.loglog(k_plot, E22_norm, label='E₂₂(k₁) / (ν⁵ ε)^(1/4)')
 
     # théorie : droites en -5/3 couvrant la plage tracée, amplitudes C1 et C1'
     if len(k_plot) > 0:
         k_theory = np.logspace(np.log10(k_plot.min()), np.log10(k_plot.max()), 100)
         C1_val = C1  # utilise la constante définie en haut du fichier
         C1p_val = (4.0 / 3.0) * C1_val
-        plt.loglog(k_theory, C1_val * k_theory**(-5/3), 'k--', label=f'Théorie $C_1 k^{{-5/3}},\\;C_1={C1_val:.2f}$')
-        plt.loglog(k_theory, C1p_val * k_theory**(-5/3), 'k-.', label=f'Théorie $C_1\\prime k^{{-5/3}},\\;C_1\\prime={C1p_val:.2f}$')
+               
+        plt.loglog(k_theory, C1_val * k_theory**(-5/3), 'k--', label=f'C₁ (k₁η)^(-5/3), C₁={C1_val:.2f}')
+        plt.loglog(k_theory, C1p_val * k_theory**(-5/3), 'k-.', label=f'C₁\' (k₁η)^(-5/3), C₁\'={C1p_val:.2f}')
 
-    plt.title("Spectres d'énergie 1D normalisés")
+    plt.title("Normalized 1D Energy Spectra")
     plt.xlabel('$k_1 \\eta$')
     plt.ylabel('$E_{ii}(k_1) / (\\nu^5 \\epsilon)^{1/4}$')
     plt.grid(True, which='both', linestyle=':')
@@ -232,16 +233,16 @@ def plot_spectra_comp(k_values, E11_avg, E22_avg, globals_dict, results_path):
     os.makedirs(results_path, exist_ok=True)
 
     plt.figure(figsize=(10, 6))
-    plt.loglog(k_plot, compensated_E11, label='Compensé $E_{11}$')
-    plt.loglog(k_plot, compensated_E22, label='Compensé $E_{22}$')
+    plt.loglog(k_plot, compensated_E11, label='Compensated $E_{11}$')
+    plt.loglog(k_plot, compensated_E22, label='Compensated $E_{22}$')
 
     # lignes théoriques & mesurées
     plt.axhline(C1_val, color='k', linestyle='--', label=f'$C_1={C1_val:.2f}$')
     plt.axhline(C1p_val, color='k', linestyle='-.', label=f"$C'_1={C1p_val:.2f}$")
     if np.isfinite(measured_C1):
-        plt.axhline(measured_C1, color='blue', linestyle=':', label=f'Mesure $C_1^{{meas}}={measured_C1:.2f}$')
+        plt.axhline(measured_C1, color='blue', linestyle=':', label=f'Measured $C_1^{{meas}}={measured_C1:.2f}$')
     if np.isfinite(measured_C1p):
-        plt.axhline(measured_C1p, color='orange', linestyle=':', label=f"Mesure $C_1^{{\\prime,meas}}={measured_C1p:.2f}$")
+        plt.axhline(measured_C1p, color='orange', linestyle=':', label=f"Measured $C_1^{{\\prime,meas}}={measured_C1p:.2f}$")
 
     # annoter la fenêtre pseudo-plateau
     if np.any(plateau_mask):
@@ -257,9 +258,9 @@ def plot_spectra_comp(k_values, E11_avg, E22_avg, globals_dict, results_path):
         combined_max = np.nanmax(compensated_E11) if compensated_E11.size>0 else np.nan
     ymax = max(1.6, combined_max + 0.05 if np.isfinite(combined_max) else 1.6)
 
-    plt.fill_betweenx([0, ymax], x1, x2, color='grey', alpha=0.12, label='Fenêtre pseudo-plateau')
+    plt.fill_betweenx([0, ymax], x1, x2, color='grey', alpha=0.12, label='Pseudo-plateau window')
 
-    plt.title("Spectres d'énergie 1D compensés")
+    plt.title("Compensated 1D Energy Spectra")
     plt.xlabel('$k_1 \\eta$')
     plt.ylabel('$(k_1\\eta)^{5/3} E_{ii} / (\\nu^5\\epsilon)^{1/4}$')
     plt.ylim(0, ymax)
@@ -297,9 +298,9 @@ def plot_autocorrelation(r_values, f_r, g_r, eta, results_path):
     plt.plot(r_plot, f_plot, label='$f(r)$ (Longitudinal)')
     plt.plot(r_plot, g_plot, label='$g(r)$ (Transverse)')
 
-    plt.title("Fonctions d'autocorrélation")
+    plt.title("Autocorrelation Functions")
     plt.xlabel('$r / \\eta$')
-    plt.ylabel('Corrélation')
+    plt.ylabel('Correlation')
     plt.grid(True, which='both', linestyle=':')
     plt.legend()
 
