@@ -365,12 +365,12 @@ if __name__ == "__main__":
     globals_dict = calculate_global_quantities(pencils)
     
     # Tâche 2
-    #r_vals, D11, D22 = None, None, None
-    #r_vals, D11, D22 = calculate_structure_functions(pencils, globals_dict)
+    r_vals, D11, D22 = None, None, None
+    r_vals, D11, D22 = calculate_structure_functions(pencils, globals_dict)
 
 
-    #plot_sf_loglog(r_vals, D11, D22, globals_dict['eta'], RESULTS_PATH)                         # Log-Log
-    #plot_sf_comp(r_vals, D11, D22, globals_dict['eps'], globals_dict['eta'], RESULTS_PATH)      # Compensé 
+    plot_sf_loglog(r_vals, D11, D22, globals_dict['eta'], RESULTS_PATH)                         # Log-Log
+    plot_sf_comp(r_vals, D11, D22, globals_dict['eps'], globals_dict['eta'], RESULTS_PATH)      # Compensé 
     
     #raise SystemExit
 
